@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Lecture Rapide • Bionic + RSVP</title>
+  <title>Lecture Rapide • Bionic + Progression</title>
   <style>
     body {
       height: 100vh;
@@ -19,7 +19,7 @@
     }
     #setup {
       width: 90%;
-      max-width: 800px;
+      max-width: 900px;
       text-align: center;
       padding: 30px;
       background: rgba(0,0,0,0.4);
@@ -46,7 +46,8 @@
       margin: 20px 0;
       align-items: center;
     }
-    button, input[type="range"], select, input[type="color"] {
+    .progression-controls { display: none; gap: 20px; flex-wrap: wrap; justify-content: center; }
+    button, select, input[type="number"], input[type="color"] {
       padding: 12px 20px;
       font-size: 1.1rem;
       border-radius: 50px;
@@ -57,8 +58,8 @@
       font-weight: bold;
     }
     button:hover { background: #00eaff; transform: scale(1.05); }
-    #wpm { width: 120px; text-align: center; }
-    #highlightColor { width: 60px; height: 40px; padding: 0; border: none; vertical-align: middle; }
+    #wpm, #startWpm, #targetWpm, #accelDuration { width: 140px; text-align: center; }
+    #highlightColor { width: 60px; height: 40px; padding: 0; border: none; }
     #display {
       position: absolute;
       top: 50%;
@@ -77,7 +78,7 @@
     }
     #display.show { opacity: 1; }
     .word { margin: 0 8px; white-space: nowrap; }
-    .highlight { color: #ff4d4d; } /* couleur par défaut rouge */
+    .highlight { color: #ff4d4d; } /* défaut */
     #progress {
       position: fixed;
       bottom: 20px;
@@ -102,18 +103,33 @@
       display: none;
       gap: 15px;
     }
+    #currentSpeed {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.4rem;
+      opacity: 0.8;
+      display: none;
+    }
   </style>
 </head>
 <body>
 
   <div id="setup">
-    <h1>Lecture Rapide Bionic + RSVP</h1>
-    <p>Colle ton texte → la lettre centrale de chaque mot est mise en couleur pour t'aider à fixer plus vite !</p>
+    <h1>Lecture Rapide Bionic + Modes</h1>
+    <p>Colle ton texte, choisis le mode, la vitesse et lance !</p>
     
-    <textarea id="textInput" placeholder="Colle ton texte ici... (articles, livres, notes, etc.)"></textarea>
+    <textarea id="textInput" placeholder="Colle ton texte ici..."></textarea>
     
     <div class="controls">
-      <label>Vitesse : <input type="number" id="wpm" value="350" min="100" max="1200" step="50"> WPM</label>
+      <label>Mode : 
+        <select id="mode" onchange="toggleProgression()">
+          <option value="fixed">Classique (vitesse fixe)</option>
+          <option value="progressive">Progression (accélération)</option>
+        </select>
+      </label>
+      <label id="fixedWpmLabel">Vitesse : <input type="number" id="wpm" value="350" min="100" max="1200" step="50"> WPM</label>
       <label>Chunk : 
         <select id="chunkSize">
           <option value="1">1 mot</option>
@@ -126,9 +142,16 @@
       <label>Couleur centrale : <input type="color" id="highlightColor" value="#ff4d4d"></label>
       <button onclick="startReading()">DÉMARRER →</button>
     </div>
+
+    <div class="progression-controls" id="progressionControls">
+      <label>Départ : <input type="number" id="startWpm" value="300" min="100" max="800" step="50"> WPM</label>
+      <label>Cible : <input type="number" id="targetWpm" value="700" min="200" max="1500" step="50"> WPM</label>
+      <label>Durée accélération : <input type="number" id="accelDuration" value="120" min="30" max="600" step="10"> secondes</label>
+    </div>
   </div>
 
   <div id="display"></div>
+  <div id="currentSpeed">Vitesse actuelle : <span id="currWpm">350</span> WPM</div>
 
   <div id="controls-running">
     <button onclick="pauseResume()">Pause / Reprendre</button>
@@ -142,47 +165,84 @@
     let index = 0;
     let intervalId = null;
     let isPaused = false;
-    let wpm = 350;
+    let currentWpm = 350;
     let chunk = 3;
     let highlightColor = '#ff4d4d';
+    let mode = 'fixed';
+    let startWpm = 300;
+    let targetWpm = 700;
+    let accelDurationSec = 120; // secondes
+    let startTime = null;
+
+    function toggleProgression() {
+      mode = document.getElementById('mode').value;
+      document.getElementById('fixedWpmLabel').style.display = mode === 'fixed' ? 'flex' : 'none';
+      document.getElementById('progressionControls').style.display = mode === 'progressive' ? 'flex' : 'none';
+      document.getElementById('currentSpeed').style.display = mode === 'progressive' ? 'block' : 'none';
+    }
 
     function highlightCenter(word) {
       if (word.length <= 1) return `<span class="word">${word}</span>`;
-      
       const mid = Math.floor((word.length - 1) / 2);
-      const highlighted = word[mid];
       const before = word.slice(0, mid);
+      const highlighted = word[mid];
       const after = word.slice(mid + 1);
-      
       return `<span class="word">${before}<span class="highlight" style="color:${highlightColor};">${highlighted}</span>${after}</span>`;
+    }
+
+    function calculateCurrentWpm() {
+      if (mode !== 'progressive' || !startTime) return currentWpm;
+      const elapsed = (Date.now() - startTime) / 1000;
+      if (elapsed >= accelDurationSec) return targetWpm;
+      const progress = elapsed / accelDurationSec;
+      return Math.round(startWpm + (targetWpm - startWpm) * progress);
+    }
+
+    function updateSpeedDisplay() {
+      const newWpm = calculateCurrentWpm();
+      if (newWpm !== currentWpm) {
+        currentWpm = newWpm;
+        document.getElementById('currWpm').textContent = currentWpm;
+      }
     }
 
     function startReading() {
       const text = document.getElementById('textInput').value.trim();
       if (!text) { alert("Colle un texte d'abord !"); return; }
 
-      wpm = parseInt(document.getElementById('wpm').value) || 350;
       chunk = parseInt(document.getElementById('chunkSize').value) || 3;
       highlightColor = document.getElementById('highlightColor').value || '#ff4d4d';
 
-      words = text.split(/\s+/).filter(w => w.trim());
+      if (mode === 'fixed') {
+        currentWpm = parseInt(document.getElementById('wpm').value) || 350;
+      } else {
+        startWpm = parseInt(document.getElementById('startWpm').value) || 300;
+        targetWpm = parseInt(document.getElementById('targetWpm').value) || 700;
+        accelDurationSec = parseInt(document.getElementById('accelDuration').value) || 120;
+        currentWpm = startWpm;
+        startTime = Date.now();
+      }
 
+      words = text.split(/\s+/).filter(w => w.trim());
       index = 0;
+
       document.getElementById('setup').style.display = 'none';
       document.getElementById('controls-running').style.display = 'flex';
       document.getElementById('display').classList.add('show');
+      if (mode === 'progressive') document.getElementById('currentSpeed').style.display = 'block';
 
-      const delay = (60000 / wpm) * chunk;
-
-      intervalId = setInterval(showNextChunk, delay);
-      showNextChunk();
+      scheduleNext();
     }
 
-    function showNextChunk() {
+    function scheduleNext() {
       if (index >= words.length) {
         stopReading();
         return;
       }
+
+      updateSpeedDisplay(); // met à jour l'affichage de la vitesse
+
+      const delay = (60000 / currentWpm) * chunk;
 
       let chunkHtml = '';
       for (let i = 0; i < chunk && index < words.length; i++) {
@@ -194,24 +254,29 @@
 
       const progress = (index / words.length) * 100;
       document.getElementById('bar').style.width = progress + '%';
+
+      intervalId = setTimeout(scheduleNext, delay);
     }
 
     function pauseResume() {
       if (isPaused) {
-        intervalId = setInterval(showNextChunk, (60000 / wpm) * chunk);
+        startTime = Date.now() - (startTime ? (Date.now() - startTime) : 0); // reprend le timer
+        scheduleNext();
         isPaused = false;
       } else {
-        clearInterval(intervalId);
+        clearTimeout(intervalId);
         isPaused = true;
       }
     }
 
     function stopReading() {
-      clearInterval(intervalId);
+      clearTimeout(intervalId);
       document.getElementById('setup').style.display = 'block';
       document.getElementById('controls-running').style.display = 'none';
       document.getElementById('display').classList.remove('show');
+      document.getElementById('currentSpeed').style.display = 'none';
       document.getElementById('bar').style.width = '0%';
+      startTime = null;
     }
 
     document.addEventListener('keydown', e => {
@@ -220,6 +285,9 @@
         pauseResume();
       }
     });
+
+    // Init
+    toggleProgression();
   </script>
 
 </body>
