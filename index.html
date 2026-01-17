@@ -3,145 +3,223 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Speed Reading • Comme dans le Reel</title>
+  <title>Lecture Rapide • Bionic + RSVP</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
     body {
       height: 100vh;
+      margin: 0;
       background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-      color: #ffffff;
-      font-family: -apple-system, BlinkMacC, "Segoe UI", Roboto, sans-serif;
+      color: white;
+      font-family: system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       overflow: hidden;
-      display: grid;
-      place-items: center;
     }
-
-    .container {
-      max-width: 720px;
-      padding: 30px;
+    #setup {
+      width: 90%;
+      max-width: 800px;
       text-align: center;
+      padding: 30px;
+      background: rgba(0,0,0,0.4);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
     }
-
-    .slide {
-      opacity: 0;
-      transform: translateY(40px);
-      transition: all 0.9s ease;
-      position: absolute;
+    textarea {
       width: 100%;
+      height: 180px;
+      padding: 15px;
+      font-size: 1.1rem;
+      border-radius: 8px;
+      border: 1px solid #444;
+      background: #111;
+      color: white;
+      resize: vertical;
+      margin: 20px 0;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      margin: 20px 0;
+      align-items: center;
+    }
+    button, input[type="range"], select, input[type="color"] {
+      padding: 12px 20px;
+      font-size: 1.1rem;
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      background: #00d4ff;
+      color: black;
+      font-weight: bold;
+    }
+    button:hover { background: #00eaff; transform: scale(1.05); }
+    #wpm { width: 120px; text-align: center; }
+    #highlightColor { width: 60px; height: 40px; padding: 0; border: none; vertical-align: middle; }
+    #display {
+      position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-    }
-
-    .slide.active {
-      opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
-    }
-
-    h1 {
-      font-size: 2.6rem;
-      line-height: 1.2;
-      margin-bottom: 1.2rem;
-      background: linear-gradient(90deg, #00d4ff, #090979);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    p {
-      font-size: 1.35rem;
-      line-height: 1.45;
-      opacity: 0.9;
-      max-width: 90%;
-      margin: 0 auto;
-    }
-
-    .highlight {
-      color: #00eaff;
-      font-weight: 600;
-    }
-
-    .try-it {
-      font-size: 1.8rem;
-      margin-top: 2rem;
+      font-size: 3.8rem;
       font-weight: bold;
-      color: #ffeb3b;
-      text-shadow: 0 0 15px rgba(255,235,59,0.6);
+      text-align: center;
+      width: 90%;
+      max-width: 1400px;
+      line-height: 1.5;
+      opacity: 0;
+      transition: opacity 0.4s;
+      pointer-events: none;
+      letter-spacing: 1px;
     }
-
-    /* Petit footer discret */
-    .footer {
-      position: absolute;
-      bottom: 25px;
-      font-size: 0.9rem;
-      opacity: 0.6;
+    #display.show { opacity: 1; }
+    .word { margin: 0 8px; white-space: nowrap; }
+    .highlight { color: #ff4d4d; } /* couleur par défaut rouge */
+    #progress {
+      position: fixed;
+      bottom: 20px;
+      width: 80%;
+      max-width: 600px;
+      height: 8px;
+      background: #333;
+      border-radius: 4px;
+      overflow: hidden;
     }
-
-    @media (max-height: 680px) {
-      h1 { font-size: 2.1rem; }
-      p   { font-size: 1.15rem; }
+    #bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #00d4ff, #090979);
+      transition: width 0.3s linear;
+    }
+    #controls-running {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+      gap: 15px;
     }
   </style>
 </head>
 <body>
 
-  <div class="container">
-
-    <div class="slide" id="slide1">
-      <h1>La plupart des gens lisent<br>200–300 mots par minute</h1>
-      <p>Mais certains lecteurs rapides entraînés atteignent des vitesses <span class="highlight">nettement supérieures</span> !</p>
+  <div id="setup">
+    <h1>Lecture Rapide Bionic + RSVP</h1>
+    <p>Colle ton texte → la lettre centrale de chaque mot est mise en couleur pour t'aider à fixer plus vite !</p>
+    
+    <textarea id="textInput" placeholder="Colle ton texte ici... (articles, livres, notes, etc.)"></textarea>
+    
+    <div class="controls">
+      <label>Vitesse : <input type="number" id="wpm" value="350" min="100" max="1200" step="50"> WPM</label>
+      <label>Chunk : 
+        <select id="chunkSize">
+          <option value="1">1 mot</option>
+          <option value="2">2 mots</option>
+          <option value="3" selected>3 mots</option>
+          <option value="4">4 mots</option>
+          <option value="5">5 mots</option>
+        </select>
+      </label>
+      <label>Couleur centrale : <input type="color" id="highlightColor" value="#ff4d4d"></label>
+      <button onclick="startReading()">DÉMARRER →</button>
     </div>
-
-    <div class="slide" id="slide2">
-      <p>Ce n’est pas juste une question de bouger les yeux plus vite…</p>
-      <h1>Il s’agit surtout de :</h1>
-      <p style="margin: 35px 0; font-size: 1.5rem;">
-        • Traiter des <span class="highlight">morceaux de texte</span> entiers d’un coup<br>
-        • Améliorer sa concentration<br>
-        • Réduire la <span class="highlight">subvocalisation</span><br>
-          (la petite voix dans ta tête)
-      </p>
-    </div>
-
-    <div class="slide" id="slide3">
-      <h1 class="try-it">Essaie maintenant !</h1>
-      <p style="margin-top: 2.5rem;">
-        Lis ce texte le plus vite possible<br>
-        sans prononcer les mots dans ta tête…
-      </p>
-      <p style="margin-top: 3rem; font-size: 1.1rem; opacity: 0.8;">
-        Ton cerveau est capable de bien plus que tu ne le crois.
-      </p>
-    </div>
-
   </div>
 
-  <div class="footer">
-    Pour la science 🧠 • Usage éducatif uniquement
+  <div id="display"></div>
+
+  <div id="controls-running">
+    <button onclick="pauseResume()">Pause / Reprendre</button>
+    <button onclick="stopReading()">Arrêter</button>
   </div>
+
+  <div id="progress"><div id="bar"></div></div>
 
   <script>
-    const slides = document.querySelectorAll('.slide');
-    let current = 0;
+    let words = [];
+    let index = 0;
+    let intervalId = null;
+    let isPaused = false;
+    let wpm = 350;
+    let chunk = 3;
+    let highlightColor = '#ff4d4d';
 
-    function showNext() {
-      slides.forEach(s => s.classList.remove('active'));
-      slides[current].classList.add('active');
+    function highlightCenter(word) {
+      if (word.length <= 1) return `<span class="word">${word}</span>`;
       
-      current = (current + 1) % slides.length;
+      const mid = Math.floor((word.length - 1) / 2);
+      const highlighted = word[mid];
+      const before = word.slice(0, mid);
+      const after = word.slice(mid + 1);
       
-      // Temps un peu plus long pour la dernière slide "essaie"
-      const delay = current === 0 ? 4500 : 6500;
-      setTimeout(showNext, delay);
+      return `<span class="word">${before}<span class="highlight" style="color:${highlightColor};">${highlighted}</span>${after}</span>`;
     }
 
-    // Démarrage
-    slides[0].classList.add('active');
-    setTimeout(showNext, 5500);
+    function startReading() {
+      const text = document.getElementById('textInput').value.trim();
+      if (!text) { alert("Colle un texte d'abord !"); return; }
+
+      wpm = parseInt(document.getElementById('wpm').value) || 350;
+      chunk = parseInt(document.getElementById('chunkSize').value) || 3;
+      highlightColor = document.getElementById('highlightColor').value || '#ff4d4d';
+
+      words = text.split(/\s+/).filter(w => w.trim());
+
+      index = 0;
+      document.getElementById('setup').style.display = 'none';
+      document.getElementById('controls-running').style.display = 'flex';
+      document.getElementById('display').classList.add('show');
+
+      const delay = (60000 / wpm) * chunk;
+
+      intervalId = setInterval(showNextChunk, delay);
+      showNextChunk();
+    }
+
+    function showNextChunk() {
+      if (index >= words.length) {
+        stopReading();
+        return;
+      }
+
+      let chunkHtml = '';
+      for (let i = 0; i < chunk && index < words.length; i++) {
+        chunkHtml += highlightCenter(words[index]);
+        index++;
+      }
+
+      document.getElementById('display').innerHTML = chunkHtml;
+
+      const progress = (index / words.length) * 100;
+      document.getElementById('bar').style.width = progress + '%';
+    }
+
+    function pauseResume() {
+      if (isPaused) {
+        intervalId = setInterval(showNextChunk, (60000 / wpm) * chunk);
+        isPaused = false;
+      } else {
+        clearInterval(intervalId);
+        isPaused = true;
+      }
+    }
+
+    function stopReading() {
+      clearInterval(intervalId);
+      document.getElementById('setup').style.display = 'block';
+      document.getElementById('controls-running').style.display = 'none';
+      document.getElementById('display').classList.remove('show');
+      document.getElementById('bar').style.width = '0%';
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.code === 'Space' && document.getElementById('controls-running').style.display === 'flex') {
+        e.preventDefault();
+        pauseResume();
+      }
+    });
   </script>
 
 </body>
