@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Speed Reading • Comme dans le Reel</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      height: 100vh;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacC, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+    }
+
+    .container {
+      max-width: 720px;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .slide {
+      opacity: 0;
+      transform: translateY(40px);
+      transition: all 0.9s ease;
+      position: absolute;
+      width: 100%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .slide.active {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    h1 {
+      font-size: 2.6rem;
+      line-height: 1.2;
+      margin-bottom: 1.2rem;
+      background: linear-gradient(90deg, #00d4ff, #090979);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    p {
+      font-size: 1.35rem;
+      line-height: 1.45;
+      opacity: 0.9;
+      max-width: 90%;
+      margin: 0 auto;
+    }
+
+    .highlight {
+      color: #00eaff;
+      font-weight: 600;
+    }
+
+    .try-it {
+      font-size: 1.8rem;
+      margin-top: 2rem;
+      font-weight: bold;
+      color: #ffeb3b;
+      text-shadow: 0 0 15px rgba(255,235,59,0.6);
+    }
+
+    /* Petit footer discret */
+    .footer {
+      position: absolute;
+      bottom: 25px;
+      font-size: 0.9rem;
+      opacity: 0.6;
+    }
+
+    @media (max-height: 680px) {
+      h1 { font-size: 2.1rem; }
+      p   { font-size: 1.15rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <div class="slide" id="slide1">
+      <h1>La plupart des gens lisent<br>200–300 mots par minute</h1>
+      <p>Mais certains lecteurs rapides entraînés atteignent des vitesses <span class="highlight">nettement supérieures</span> !</p>
+    </div>
+
+    <div class="slide" id="slide2">
+      <p>Ce n’est pas juste une question de bouger les yeux plus vite…</p>
+      <h1>Il s’agit surtout de :</h1>
+      <p style="margin: 35px 0; font-size: 1.5rem;">
+        • Traiter des <span class="highlight">morceaux de texte</span> entiers d’un coup<br>
+        • Améliorer sa concentration<br>
+        • Réduire la <span class="highlight">subvocalisation</span><br>
+          (la petite voix dans ta tête)
+      </p>
+    </div>
+
+    <div class="slide" id="slide3">
+      <h1 class="try-it">Essaie maintenant !</h1>
+      <p style="margin-top: 2.5rem;">
+        Lis ce texte le plus vite possible<br>
+        sans prononcer les mots dans ta tête…
+      </p>
+      <p style="margin-top: 3rem; font-size: 1.1rem; opacity: 0.8;">
+        Ton cerveau est capable de bien plus que tu ne le crois.
+      </p>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    Pour la science 🧠 • Usage éducatif uniquement
+  </div>
+
+  <script>
+    const slides = document.querySelectorAll('.slide');
+    let current = 0;
+
+    function showNext() {
+      slides.forEach(s => s.classList.remove('active'));
+      slides[current].classList.add('active');
+      
+      current = (current + 1) % slides.length;
+      
+      // Temps un peu plus long pour la dernière slide "essaie"
+      const delay = current === 0 ? 4500 : 6500;
+      setTimeout(showNext, delay);
+    }
+
+    // Démarrage
+    slides[0].classList.add('active');
+    setTimeout(showNext, 5500);
+  </script>
+
+</body>
+</html>
