@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Lecture Rapide • Bionic + Progression</title>
+  <title>Lecture Rapide • Bionic + Progression + FR</title>
   <style>
     body {
       height: 100vh;
@@ -47,7 +47,7 @@
       align-items: center;
     }
     .progression-controls { display: none; gap: 20px; flex-wrap: wrap; justify-content: center; }
-    button, select, input[type="number"], input[type="color"] {
+    button, select, input[type="number"], input[type="color"], label.checkbox {
       padding: 12px 20px;
       font-size: 1.1rem;
       border-radius: 50px;
@@ -57,6 +57,8 @@
       color: black;
       font-weight: bold;
     }
+    label.checkbox { background: transparent; color: white; padding: 0; }
+    input[type="checkbox"] { transform: scale(1.5); margin-right: 10px; }
     button:hover { background: #00eaff; transform: scale(1.05); }
     #wpm, #startWpm, #targetWpm, #accelDuration { width: 140px; text-align: center; }
     #highlightColor { width: 60px; height: 40px; padding: 0; border: none; }
@@ -78,7 +80,7 @@
     }
     #display.show { opacity: 1; }
     .word { margin: 0 8px; white-space: nowrap; }
-    .highlight { color: #ff4d4d; } /* défaut */
+    .highlight { color: #ff4d4d; }
     #progress {
       position: fixed;
       bottom: 20px;
@@ -117,8 +119,8 @@
 <body>
 
   <div id="setup">
-    <h1>Lecture Rapide Bionic + Modes</h1>
-    <p>Colle ton texte, choisis le mode, la vitesse et lance !</p>
+    <h1>Lecture Rapide Bionic + Modes + Français</h1>
+    <p>Colle ton texte, choisis tes options et lance !</p>
     
     <textarea id="textInput" placeholder="Colle ton texte ici..."></textarea>
     
@@ -140,6 +142,9 @@
         </select>
       </label>
       <label>Couleur centrale : <input type="color" id="highlightColor" value="#ff4d4d"></label>
+      <label class="checkbox">
+        <input type="checkbox" id="frenchMode" checked> Mode Français (colle le/la/les/il... au mot suivant)
+      </label>
       <button onclick="startReading()">DÉMARRER →</button>
     </div>
 
@@ -171,8 +176,16 @@
     let mode = 'fixed';
     let startWpm = 300;
     let targetWpm = 700;
-    let accelDurationSec = 120; // secondes
+    let accelDurationSec = 120;
     let startTime = null;
+    let frenchOptimized = true;
+
+    // Liste des petits mots français courants à coller au mot suivant (stop words très fréquents)
+    const frenchGlueWords = new Set([
+      'le', 'la', 'l\'', 'les', 'un', 'une', 'des', 'du', 'de', 'd\'', 'au', 'aux', 'à', 'en', 'dans', 'sur', 'par', 'pour', 'avec', 'chez', 'sans',
+      'il', 'ils', 'elle', 'elles', 'on', 'ce', 'ces', 'cet', 'cette', 'ces', 'son', 'sa', 'ses', 'leur', 'leurs',
+      'et', 'ou', 'mais', 'donc', 'car', 'ni', 'que', 'qui', 'quoi', 'dont', 'où', 'ne', 'pas', 'plus', 'moins'
+    ]);
 
     function toggleProgression() {
       mode = document.getElementById('mode').value;
@@ -188,6 +201,26 @@
       const highlighted = word[mid];
       const after = word.slice(mid + 1);
       return `<span class="word">${before}<span class="highlight" style="color:${highlightColor};">${highlighted}</span>${after}</span>`;
+    }
+
+    function preprocessFrench(text) {
+      if (!frenchOptimized) return text.split(/\s+/).filter(w => w.trim());
+
+      const tokens = text.split(/\s+/);
+      const processed = [];
+      let i = 0;
+      while (i < tokens.length) {
+        let current = tokens[i];
+        // Si le mot actuel est un "glue word" et qu'il y a un mot suivant → on le colle
+        if (frenchGlueWords.has(current.toLowerCase()) && i + 1 < tokens.length) {
+          current += ' ' + tokens[i + 1];
+          i += 2;
+        } else {
+          i++;
+        }
+        processed.push(current);
+      }
+      return processed.filter(w => w.trim());
     }
 
     function calculateCurrentWpm() {
@@ -212,6 +245,7 @@
 
       chunk = parseInt(document.getElementById('chunkSize').value) || 3;
       highlightColor = document.getElementById('highlightColor').value || '#ff4d4d';
+      frenchOptimized = document.getElementById('frenchMode').checked;
 
       if (mode === 'fixed') {
         currentWpm = parseInt(document.getElementById('wpm').value) || 350;
@@ -223,7 +257,7 @@
         startTime = Date.now();
       }
 
-      words = text.split(/\s+/).filter(w => w.trim());
+      words = preprocessFrench(text);
       index = 0;
 
       document.getElementById('setup').style.display = 'none';
@@ -240,7 +274,7 @@
         return;
       }
 
-      updateSpeedDisplay(); // met à jour l'affichage de la vitesse
+      updateSpeedDisplay();
 
       const delay = (60000 / currentWpm) * chunk;
 
@@ -260,7 +294,7 @@
 
     function pauseResume() {
       if (isPaused) {
-        startTime = Date.now() - (startTime ? (Date.now() - startTime) : 0); // reprend le timer
+        if (mode === 'progressive') startTime = Date.now() - (startTime ? (Date.now() - startTime) : 0);
         scheduleNext();
         isPaused = false;
       } else {
@@ -286,7 +320,6 @@
       }
     });
 
-    // Init
     toggleProgression();
   </script>
 
