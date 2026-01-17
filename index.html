@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Lecture Rapide • Lettre Fixe au Centre</title>
+  <title>Lecture Rapide • Fixation Centrale Immobile</title>
   <style>
     body {
       height: 100vh;
       margin: 0;
       background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
       color: white;
-      font-family: system-ui, sans-serif;
+      font-family: system-ui, -apple-system, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -65,33 +65,44 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      font-size: 5rem;
+      font-size: 6rem;
       font-weight: bold;
       text-align: center;
-      width: 90%;
-      max-width: 1400px;
-      line-height: 1.2;
+      width: 100%;
+      max-width: 1600px;
+      line-height: 1;
       opacity: 0;
-      transition: opacity 0.3s;
+      transition: opacity 0.25s;
       pointer-events: none;
-      white-space: pre;
-      letter-spacing: 2px;
+      white-space: nowrap;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
     #display.show { opacity: 1; }
-    .word-container {
+    .word {
       position: relative;
-      display: inline-block;
-      min-width: 300px; /* pour éviter trop de sauts */
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 400px; /* espace large pour éviter sauts */
     }
     .highlight {
-      color: #ff4d4d;
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 5.5rem; /* un peu plus gros pour bien fixer */
+      color: #ff4d4d;
+      font-size: 6.5rem; /* un peu plus gros pour ancrage visuel fort */
+      z-index: 10;
+      pointer-events: none;
     }
-    .left-part, .right-part {
-      opacity: 0.85;
+    .left-part {
+      margin-right: calc(50% + 0.5ch); /* pousse à gauche de la lettre fixe */
+      text-align: right;
+    }
+    .right-part {
+      margin-left: calc(50% + 0.5ch); /* pousse à droite */
+      text-align: left;
     }
     #progress {
       position: fixed;
@@ -122,7 +133,7 @@
       top: 80px;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 1.4rem;
+      font-size: 1.5rem;
       opacity: 0.8;
       display: none;
     }
@@ -131,24 +142,23 @@
 <body>
 
   <div id="setup">
-    <h1>Lecture Rapide • Lettre Fixe au Centre</h1>
-    <p>La lettre centrale reste immobile → idéal pour fixer le regard et lire très vite !</p>
+    <h1>Lecture Rapide • Lettre Centrale Fixe</h1>
+    <p>La lettre en couleur reste **immobile au centre parfait** de l'écran – seul le texte autour bouge !</p>
     
-    <textarea id="textInput" placeholder="Colle ton texte ici..."></textarea>
+    <textarea id="textInput" placeholder="Colle ton texte ici... (meilleur avec chunk=1)"></textarea>
     
     <div class="controls">
       <label>Mode : 
         <select id="mode" onchange="toggleProgression()">
-          <option value="fixed">Classique (vitesse fixe)</option>
-          <option value="progressive">Progression (accélération)</option>
+          <option value="fixed">Classique (fixe)</option>
+          <option value="progressive">Progression</option>
         </select>
       </label>
-      <label id="fixedWpmLabel">Vitesse : <input type="number" id="wpm" value="400" min="100" max="1200" step="50"> WPM</label>
+      <label id="fixedWpmLabel">Vitesse : <input type="number" id="wpm" value="450" min="100" max="1200" step="50"> WPM</label>
       <label>Chunk : 
         <select id="chunkSize">
           <option value="1" selected>1 mot</option>
           <option value="2">2 mots</option>
-          <option value="3">3 mots</option>
         </select>
       </label>
       <label>Couleur fixe : <input type="color" id="highlightColor" value="#ff4d4d"></label>
@@ -157,13 +167,13 @@
 
     <div class="progression-controls" id="progressionControls">
       <label>Départ : <input type="number" id="startWpm" value="300" min="100" max="800" step="50"> WPM</label>
-      <label>Cible : <input type="number" id="targetWpm" value="800" min="200" max="1500" step="50"> WPM</label>
-      <label>Durée : <input type="number" id="accelDuration" value="180" min="30" max="600" step="10"> secondes</label>
+      <label>Cible : <input type="number" id="targetWpm" value="900" min="200" max="1800" step="50"> WPM</label>
+      <label>Durée : <input type="number" id="accelDuration" value="180" min="30" max="600" step="10"> sec</label>
     </div>
   </div>
 
   <div id="display"></div>
-  <div id="currentSpeed">Vitesse actuelle : <span id="currWpm">400</span> WPM</div>
+  <div id="currentSpeed">Vitesse : <span id="currWpm">450</span> WPM</div>
 
   <div id="controls-running">
     <button onclick="pauseResume()">Pause / Reprendre</button>
@@ -177,12 +187,12 @@
     let index = 0;
     let intervalId = null;
     let isPaused = false;
-    let currentWpm = 400;
+    let currentWpm = 450;
     let chunk = 1;
     let highlightColor = '#ff4d4d';
     let mode = 'fixed';
     let startWpm = 300;
-    let targetWpm = 800;
+    let targetWpm = 900;
     let accelDurationSec = 180;
     let startTime = null;
 
@@ -196,7 +206,9 @@
     function renderWord(word) {
       if (!word) return '';
       const len = word.length;
-      if (len <= 1) return `<span style="color:${highlightColor};">${word}</span>`;
+      if (len <= 1) {
+        return `<span class="word"><span class="highlight" style="color:${highlightColor};">${word}</span></span>`;
+      }
 
       const mid = Math.floor((len - 1) / 2);
       const left = word.slice(0, mid);
@@ -204,21 +216,21 @@
       const right = word.slice(mid + 1);
 
       return `
-        <div class="word-container">
+        <span class="word">
           <span class="left-part">${left}</span>
           <span class="highlight" style="color:${highlightColor};">${center}</span>
           <span class="right-part">${right}</span>
-        </div>
+        </span>
       `;
     }
 
     function renderChunk() {
       let html = '';
       for (let i = 0; i < chunk && index < words.length; i++) {
-        html += renderWord(words[index]) + ' ';
+        html += renderWord(words[index]);
         index++;
       }
-      return html.trim();
+      return html;
     }
 
     function calculateCurrentWpm() {
@@ -245,10 +257,10 @@
       highlightColor = document.getElementById('highlightColor').value || '#ff4d4d';
 
       if (mode === 'fixed') {
-        currentWpm = parseInt(document.getElementById('wpm').value) || 400;
+        currentWpm = parseInt(document.getElementById('wpm').value) || 450;
       } else {
         startWpm = parseInt(document.getElementById('startWpm').value) || 300;
-        targetWpm = parseInt(document.getElementById('targetWpm').value) || 800;
+        targetWpm = parseInt(document.getElementById('targetWpm').value) || 900;
         accelDurationSec = parseInt(document.getElementById('accelDuration').value) || 180;
         currentWpm = startWpm;
         startTime = Date.now();
@@ -285,7 +297,9 @@
 
     function pauseResume() {
       if (isPaused) {
-        if (mode === 'progressive') startTime = Date.now() - (startTime ? (Date.now() - startTime) : 0);
+        if (mode === 'progressive') {
+          startTime = Date.now() - (Date.now() - startTime);
+        }
         showNext();
         isPaused = false;
       } else {
@@ -313,6 +327,5 @@
 
     toggleProgression();
   </script>
-
 </body>
 </html>
